@@ -32,7 +32,7 @@ end
 
 function run_sgd(losstype::Int, k::Int, lambda_l1_local::Float64,lambda_l1_global::Float64, lambda_l2::Float64, trainingfile::Vector{AbstractString}, testfile::Vector{AbstractString}, mb_size::Int, max_data_pass::Int, local_features::Set{Int})
 	beta_l = 1.0; alpha_l = 0.2 #defaults
-	beta_g = 1.0; alpha_g = 0.99 #defaults
+	beta_g = 1.0; alpha_g = 1.0 #defaults
 	eta_l = 0.0; eta_g = 0.0
 	w_global::SgdModel, w_local::Vector{SgdModel}, mb_iter::Vector{minibatch_iter}, penalty_l::L1L2Penalty, penalty_g::L1L2Penalty = init_sgd(lambda_l1_local, lambda_l1_global, lambda_l2, trainingfile, mb_size, k)
 	t::Float64 = 1.0
