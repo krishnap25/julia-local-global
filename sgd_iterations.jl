@@ -51,9 +51,9 @@ function run_sgd(losstype::Int, k::Int, lambda_l1_local::Float64,lambda_l1_globa
 			new_w::Float64 = 0.0
 			for (idx::Int, grad_val::Float64) in grad_l
 				#update
-				if (!∈(idx, local_features))
-					println("WTF")
-				end
+				#if (!∈(idx, local_features))
+				#	println("WTF")
+				#end
 				old_w = get(w_local[ii], idx, 0.0)
 				new_w = update_model(penalty_l, old_w, grad_val, eta_l)
 				if (new_w == 0.0)
@@ -64,9 +64,9 @@ function run_sgd(losstype::Int, k::Int, lambda_l1_local::Float64,lambda_l1_globa
 			end
 			for (idx::Int, grad_val::Float64) in grad_g
 				#update
-				if (∈(idx, local_features))
-					println("WTF")
-				end
+				#if (∈(idx, local_features))
+				#	println("WTF")
+				#end
 				old_w = get(w_global, idx, 0.0)
 				new_w = update_model(penalty_g, old_w, grad_val, eta_g)
 				if (new_w == 0.0)
@@ -75,13 +75,19 @@ function run_sgd(losstype::Int, k::Int, lambda_l1_local::Float64,lambda_l1_globa
 					w_global[idx] = new_w
 				end
 			end
-      new_iter =  min_num_pass(mb_iter)
+			new_iter =  min_num_pass(mb_iter)
 			#println("norm : $(norm(w))")
-			if (new_iter != old_iter || rem(counter, 10) == 1)
+			if (new_iter != old_iter)
 				acc = predict(testfile, w_local, w_global)
 				println("Iteration $(new_iter): Accuracy $(acc), Sparsity $(length(collect(keys(w_global))))")
+				flush(STDOUT)
 			end	
 		end
+		if (rem(counter, 10) == 1)
+			acc = predict(testfile, w_local, w_global)
+			println("Iteration $(new_iter): Accuracy $(acc), Sparsity $(length(collect(keys(w_global))))")
+			flush(STDOUT)
+		end	
 		t += one(t)
 	end
 	return 0
