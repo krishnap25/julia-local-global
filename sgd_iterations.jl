@@ -75,15 +75,16 @@ function run_sgd(losstype::Int, k::Int, lambda_l1_local::Float64,lambda_l1_globa
 					w_global[idx] = new_w
 				end
 			end
+      new_iter =  min_num_pass(mb_iter)
 			#println("norm : $(norm(w))")
-			if (new_iter != old_iter)
+			if (new_iter != old_iter || rem(counter, 10) == 1)
 				acc = predict(testfile, w_local, w_global)
 				println("Iteration $(new_iter): Accuracy $(acc), Sparsity $(length(collect(keys(w_global))))")
 			end	
 		end
 		t += one(t)
 	end
-	return w
+	return 0
 end
 
 function predict_one(testfile::AbstractString, w_local::SgdModel, w_global::SgdModel)
