@@ -83,13 +83,16 @@ function run_sgd(losstype::Int, k::Int, lambda_l1_local::Float64,lambda_l1_globa
 				flush(STDOUT)
 			end	
 		end
-		if (rem(counter, 10) == 1)
+		if (rem(counter, 30) == 1)
 			acc = predict(testfile, w_local, w_global)
 			println("Iteration $(new_iter): Accuracy $(acc), Sparsity $(length(collect(keys(w_global))))")
 			flush(STDOUT)
 		end	
 		t += one(t)
 	end
+	acc = predict(testfile, w_local, w_global)
+	println("Iteration $(new_iter): Accuracy $(acc), Sparsity $(length(collect(keys(w_global))))")
+	flush(STDOUT)
 	return 0
 end
 
