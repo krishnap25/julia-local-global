@@ -3,7 +3,7 @@ module LossLocalGlobal
 importall rowblock
 export loss, lossGradient, lossGradientNormalized
 
-typealias SgdModel Dict{Int64, Float64}
+typealias SgdModel Dict{UInt64, Float64}
 
 #abstract loss
 
@@ -55,9 +55,9 @@ function lossGradient(losstype::Int, x::Float64)
 	end
 end
 
-function lossGradient(losstype::Int, wlocal::SgdModel, wglobal::SgdModel, local_features::Set{Int}, mb::RowBlock)
-	grad_l = Dict{Int64, Float64}()
-	grad_g = Dict{Int64, Float64}()
+function lossGradient(losstype::Int, wlocal::SgdModel, wglobal::SgdModel, local_features::Set{UInt64}, mb::RowBlock, lg_type=2.0)
+	grad_l = Dict{UInt64, Float64}()
+	grad_g = Dict{UInt64, Float64}()
 	for ii in 1:size(mb)
 		r = mb[ii]
 		lossD = lossGradient(losstype, r.label * (dot(r, wlocal) + dot(r, wglobal)))
@@ -66,17 +66,21 @@ function lossGradient(losstype::Int, wlocal::SgdModel, wglobal::SgdModel, local_
 			val = get_value(r, j) * r.label * lossD
 			if (∈(idx, local_features))
 				grad_l[idx] = get(grad_l, idx, 0.0) + val
+        if (lg_type == 2)
+			    grad_g[idx] = get(grad_g, idx, 0.0) + val
+        end
 			else 
-				grad_g[idx] = get(grad_g, idx, 0.0) + val
+			  grad_g[idx] = get(grad_g, idx, 0.0) + val
 			end	
+			#grad_g[idx] = get(grad_g, idx, 0.0) + val
 		end
 	end
 	return grad_l, grad_g
 end
 
-function lossGradientNormalized(losstype::Int, wlocal::SgdModel, wglobal::SgdModel, local_features::Set{Int}, mb::RowBlock)
-	grad_l = Dict{Int64, Float64}()
-	grad_g = Dict{Int64, Float64}()
+function lossGradientNormalized(losstype::Int, wlocal::SgdModel, wglobal::SgdModel, local_features::Set{UInt64}, mb::RowBlock, lg_type=2.0)
+	grad_l = Dict{UInt64, Float64}()
+	grad_g = Dict{UInt64, Float64}()
 	for ii in 1:size(mb)
 		r = mb[ii]
 		lossD = lossGradient(losstype, r.label * (dot(r, wlocal) + dot(r, wglobal)))
@@ -85,8 +89,11 @@ function lossGradientNormalized(losstype::Int, wlocal::SgdModel, wglobal::SgdMod
 			val = get_value(r, j) * r.label * lossD
 			if (∈(idx, local_features))
 				grad_l[idx] = get(grad_l, idx, 0.0) + val/size(mb)
+        if (lg_type == 2)
+			    grad_g[idx] = get(grad_g, idx, 0.0) + val/size(mb)
+        end
 			else 
-				grad_g[idx] = get(grad_g, idx, 0.0) + val/size(mb)
+			  grad_g[idx] = get(grad_g, idx, 0.0) + val/size(mb)
 			end	
 		end
 	end

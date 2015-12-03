@@ -1,5 +1,5 @@
 
-typealias SgdModel Dict{Int, Float64}
+typealias SgdModel Dict{UInt64, Float64}
 
 function norm(w::SgdModel)
 	n = 0.0
@@ -30,9 +30,13 @@ function min_num_pass(mb_iter::Vector{minibatch_iter})
 	return m
 end
 
-function run_sgd(losstype::Int, k::Int, lambda_l1_local::Float64,lambda_l1_global::Float64, lambda_l2::Float64, trainingfile::Vector{AbstractString}, testfile::Vector{AbstractString}, mb_size::Int, max_data_pass::Int, local_features::Set{Int})
-	beta_l = 1.0; alpha_l = 0.2 #defaults
-	beta_g = 1.0; alpha_g = 1.0 #defaults
+function run_sgd(losstype::Int, k::Int, lambda_l1_local::Float64,lambda_l1_global::Float64, lambda_l2::Float64, trainingfile::Vector{AbstractString}, testfile::Vector{AbstractString}, mb_size::Int, max_data_pass::Int, local_features::Set{UInt64}, params)
+
+
+  println("beta:$(params[7]) alpha_l: $(params[5]) alpha_g: $(params[6])  t-factor: $(params[9])  reset: $(params[8])  ")
+
+	beta_l = params[7]; alpha_l = params[5] #defaults
+	beta_g = params[7]; alpha_g = params[6] #defaults
 	eta_l = 0.0; eta_g = 0.0
 	w_global::SgdModel, w_local::Vector{SgdModel}, mb_iter::Vector{minibatch_iter}, penalty_l::L1L2Penalty, penalty_g::L1L2Penalty = init_sgd(lambda_l1_local, lambda_l1_global, lambda_l2, trainingfile, mb_size, k)
 	t::Float64 = 1.0
@@ -40,16 +44,16 @@ function run_sgd(losstype::Int, k::Int, lambda_l1_local::Float64,lambda_l1_globa
 	counter = 0
 	while (new_iter < max_data_pass)
 		counter += 1
-		eta_l =( (beta_l + sqrt(t)) / alpha_l) #step size
-		eta_g =( (beta_g + sqrt(t)) / alpha_g) #step size
+		eta_l =( (beta_l + sqrt(t/params[9])) / alpha_l) #step size
+		eta_g =( (beta_g + sqrt(t/params[9])) / alpha_g) #step size
 		old_iter = min_num_pass(mb_iter)
 		for ii in 1:k
-			grad_l, grad_g = lossGradientNormalized(losstype, w_local[ii], w_global, local_features, read_mb(mb_iter[ii]))
+			grad_l, grad_g = lossGradientNormalized(losstype, w_local[ii], w_global, local_features, read_mb(mb_iter[ii]), params[1])
 			println("$(counter): $(ii): $(norm(grad_l)) $(norm(grad_g))")
 			old_iter = min_num_pass(mb_iter)
 			old_w::Float64 = 0.0
 			new_w::Float64 = 0.0
-			for (idx::Int, grad_val::Float64) in grad_l
+			for (idx, grad_val::Float64) in grad_l
 				#update
 				#if (!∈(idx, local_features))
 				#	println("WTF")
@@ -62,7 +66,7 @@ function run_sgd(losstype::Int, k::Int, lambda_l1_local::Float64,lambda_l1_globa
 					w_local[ii][idx] = new_w
 				end
 			end
-			for (idx::Int, grad_val::Float64) in grad_g
+			for (idx, grad_val::Float64) in grad_g
 				#update
 				#if (∈(idx, local_features))
 				#	println("WTF")
@@ -83,12 +87,16 @@ function run_sgd(losstype::Int, k::Int, lambda_l1_local::Float64,lambda_l1_globa
 				flush(STDOUT)
 			end	
 		end
-		if (rem(counter, 30) == 1)
+		if (rem(counter, convert(Int, params[10])) == 0)
 			acc = predict(testfile, w_local, w_global)
 			println("Iteration $(new_iter): Accuracy $(acc), Sparsity $(length(collect(keys(w_global))))")
 			flush(STDOUT)
 		end	
 		t += one(t)
+    if (t > params[8])
+      println("RESET TIME")
+      t -= params[8]/2
+    end
 	end
 	acc = predict(testfile, w_local, w_global)
 	println("Iteration $(new_iter): Accuracy $(acc), Sparsity $(length(collect(keys(w_global))))")
@@ -113,10 +121,10 @@ function predict_one(testfile::AbstractString, w_local::SgdModel, w_global::SgdM
 		for token in tokens
 			colon_ix = findfirst(token, ':')
 			if (colon_ix != 0)
-				ix = parse(Int, token[1:colon_ix-1])
+				ix = parse(UInt64, token[1:colon_ix-1])
 				e = parse(Float64, token[colon_ix+1:end])
 			else
-				ix = parse(Int, strip(token))
+				ix = parse(UInt64, strip(token))
 				e = 1.0
 			end
 			dotp += (get(w_local, ix, 0.0) + get(w_global, ix, 0.0)) * e
