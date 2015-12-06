@@ -17,6 +17,12 @@ function main()
     lg_1_or_2 = parse(Float64, ARGS[num_args]) ; num_args += 1
   end
 
+  if (length(ARGS) < num_args)
+    num_f = 10007
+  else
+    num_f = parse(Float64, ARGS[num_args]) ; num_args += 1
+  end
+
   #params: lg_1_or_2, lambda_l1_l, lambda_l1_g, lambda_l2, alpha_l, alpha_g, beta, reset_time, t_factor, accuracy_step
   #reset_time: default value is Inf;
   #t_factor: default value is 1
@@ -27,6 +33,13 @@ function main()
     else
       params = [lg_1_or_2 1e-2 1e-3 1e-4 0.09 0.09 1 Inf 5 30]
     end
+  elseif (dataset == "ctrb")
+    if (lg_1_or_2 == 1)
+      params = [lg_1_or_2 5e-3 5e-4 1e-4 0.09 0.9 1 Inf 5 30] 
+    else
+      params = [lg_1_or_2 5e-3 5e-4 1e-4 0.09 0.09 1 Inf 5 30]
+    end
+ 
   elseif (dataset == "criteo_s")
     if (lg_1_or_2 == 1)
       params = [lg_1_or_2 5e-4 5e-5 1e-4 0.6 600 1 200 1 100] 
@@ -41,7 +54,7 @@ function main()
   lambda_l1_local = params[2]
   lambda_l1_global = params[3]
 	lambda_l2 = params[4]
-	const mb_size = 5000
+	const mb_size = 10000
   #params[5:6] = params[5:6] * mb_size / 1e4
 	println("Starting: lambda_l1_local = $(lambda_l1_local) ; lambda_l1_global = $(lambda_l1_global) ; lambda_l2 = $(lambda_l2)")
   println("mb_size: $(mb_size)")
@@ -58,7 +71,7 @@ function main()
 	#println(trainingfile)
 	#println(testingfile)
 	temp = readdlm("../../learn/data/$(dataset)/features", UInt64)
-	features = Set{UInt64}(temp[:, 1])
+	features = Set{UInt64}(temp[1:min(numf, size(temp, 1)), 1])
 
 #function run_sgd(losstype::Int, k::Int, lambda_l1_local::Float64, lambda_l2::Float64, trainingfile::Vector{AbstractString}, testfile::Vector{AbstractString}, mb_size::Int, max_data_pass::Int, local_features::Set{Int})
 
