@@ -11,6 +11,7 @@ function main()
   const expt = parse(Int, ARGS[num_args]) ; num_args += 1
   const numPart = parse(Int, ARGS[num_args]) ; num_args += 1
 	const num_passes = parse(Int, ARGS[num_args]) ; num_args += 1
+  #println("$(num_args) $(length(ARGS))")
   if (length(ARGS) < num_args)
     lg_1_or_2 = 2.0
   else
@@ -29,9 +30,14 @@ function main()
   println(lg_1_or_2)
   if (dataset == "ctra")
     if (lg_1_or_2 == 1)
-      params = [lg_1_or_2 1e-2 1e-3 1e-4 0.2 1 1 Inf 5 30] 
+      if (num_f < 100)
+        xxx = 0.2
+      else
+        xxx = 1 #larger learning rate for non-local features, but only if numf is large
+      end
+      params = [lg_1_or_2 1e-2 1e-3 1e-4 0.2 xxx 1 Inf 5 30] 
     else
-      params = [lg_1_or_2 1e-2 1e-3 1e-4 0.09 0.09 1 Inf 5 30]
+      params = [lg_1_or_2 1e-2 1e-3 1e-4 0.12 0.12 1 Inf 5 30] #change 0.2 to 0.09
     end
   elseif (dataset == "ctrb")
     if (lg_1_or_2 == 1)
@@ -42,9 +48,9 @@ function main()
  
   elseif (dataset == "criteo_s")
     if (lg_1_or_2 == 1)
-      params = [lg_1_or_2 5e-4 5e-5 1e-4 0.6 600 1 200 1 100] 
+      params = [lg_1_or_2 5e-4 5e-5 1e-4 0.8 600 1 Inf 1 100] 
     else
-      params = [lg_1_or_2 5e-4 5e-5 1e-4 0.8 0.8 1 200 1 100]
+      params = [lg_1_or_2 5e-4 5e-5 1e-4 0.8 0.8 1 Inf 1 100] #change Inf to 200
     end
   else
     println("Supply parameters!")
@@ -63,7 +69,6 @@ function main()
 	testfile = AbstractString[]
   #numPart = 8
 	for i in 0:(numPart-1)
-		#push!(trainfile, "../ctra/parts/0$(i)")
     push!(trainfile, "../../learn/data/$(dataset)/experiment$(expt)/dispatched/train/$(i)_train.txt")
 		push!(testfile, "../../learn/data/$(dataset)/experiment$(expt)/dispatched/test/$(i)_train.txt")
 	end
@@ -71,8 +76,13 @@ function main()
 	#println(trainingfile)
 	#println(testingfile)
 	temp = readdlm("../../learn/data/$(dataset)/features", UInt64)
-	features = Set{UInt64}(temp[1:min(numf, size(temp, 1)), 1])
-
+  if (num_f == 0)
+    features = Set{UInt64}()
+  elseif (num_f >= size(temp, 1))
+    features = Set{UInt64}(0) # singleton  set means all features are local
+  else
+	  features = Set{UInt64}(temp[1:min(num_f, size(temp, 1)), 1])
+  end
 #function run_sgd(losstype::Int, k::Int, lambda_l1_local::Float64, lambda_l2::Float64, trainingfile::Vector{AbstractString}, testfile::Vector{AbstractString}, mb_size::Int, max_data_pass::Int, local_features::Set{Int})
 
 	loss_dict = Dict("logistic" => 1, "logloss" => 1, "1" => 1, "hinge" => 2, "2" => 2, "l1svm" => 2, "svm" => 2, "sqhinge" => 3, "l2svm" => 3, "3" => 3)

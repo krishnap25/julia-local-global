@@ -64,7 +64,7 @@ function lossGradient(losstype::Int, wlocal::SgdModel, wglobal::SgdModel, local_
 		for j in 1:size(r)
 			idx = r.idxs[j]
 			val = get_value(r, j) * r.label * lossD
-			if (∈(idx, local_features))
+			if (∈(idx, local_features) || (length(local_features) == 1))
 				grad_l[idx] = get(grad_l, idx, 0.0) + val
         if (lg_type == 2)
 			    grad_g[idx] = get(grad_g, idx, 0.0) + val
@@ -87,7 +87,7 @@ function lossGradientNormalized(losstype::Int, wlocal::SgdModel, wglobal::SgdMod
 		for j in 1:size(r)
 			idx = r.idxs[j]
 			val = get_value(r, j) * r.label * lossD
-			if (∈(idx, local_features))
+			if (∈(idx, local_features) || (length(local_features)==1))
 				grad_l[idx] = get(grad_l, idx, 0.0) + val/size(mb)
         if (lg_type == 2)
 			    grad_g[idx] = get(grad_g, idx, 0.0) + val/size(mb)
