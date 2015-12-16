@@ -10,16 +10,14 @@ function norm(w::SgdModel)
 end
 
 function init_sgd(lambda_l1_local::Float64, lambda_l1_global::Float64, lambda_l2::Float64, filename::Vector{AbstractString}, mb_size::Int, k::Int)
-	w_g = SgdModel()
-	w_l = Vector{SgdModel}()
+	ps_g = init_PS(lambda_l1, lambda_l2)
+	ps_l = Vector{PS}()
 	mb_iter = Vector{minibatch_iter}()
 	for i in 1:k
-		push!(w_l, SgdModel())
+		push!(ps_l, init_PS(lambda_l1, lambda_l2))
 		push!(mb_iter, minibatch_iter(filename[i], mb_size))
 	end
-	penalty_local = L1L2Penalty(lambda_l1_local, lambda_l2)
-	penalty_global = L1L2Penalty(lambda_l1_global, lambda_l2)
-	return w_g, w_l, mb_iter, penalty_local, penalty_global
+	return ps_g, ps_l, mb_iter
 end
 
 function min_num_pass(mb_iter::Vector{minibatch_iter})
@@ -38,7 +36,7 @@ function run_sgd(losstype::Int, k::Int, lambda_l1_local::Float64,lambda_l1_globa
 	beta_l = params[7]; alpha_l = params[5] #defaults
 	beta_g = params[7]; alpha_g = params[6] #defaults
 	eta_l = 0.0; eta_g = 0.0
-	w_global::SgdModel, w_local::Vector{SgdModel}, mb_iter::Vector{minibatch_iter}, penalty_l::L1L2Penalty, penalty_g::L1L2Penalty = init_sgd(lambda_l1_local, lambda_l1_global, lambda_l2, trainingfile, mb_size, k)
+	ps_global::PS, ps_local::Vector{PS}, mb_iter::Vector{minibatch_iter}, penalty_l::L1L2Penalty, penalty_g::L1L2Penalty = init_sgd(lambda_l1_local, lambda_l1_global, lambda_l2, trainingfile, mb_size, k)
 	t::Float64 = 1.0
 	new_iter = 0
 	counter = 0
@@ -48,37 +46,20 @@ function run_sgd(losstype::Int, k::Int, lambda_l1_local::Float64,lambda_l1_globa
 		eta_g =( (beta_g + sqrt(t/params[9])) / alpha_g) #step size
 		old_iter = min_num_pass(mb_iter)
 		for ii in 1:k
-			grad_l, grad_g = lossGradientNormalized(losstype, w_local[ii], w_global, local_features, read_mb(mb_iter[ii]), params[1])
+			mb = read_mb(mb_iter[ii])
+			#pull
+			req_ks = unique(mb.idxs)
+			w_ks, w_vals = pull(ps_global, req_ks)
+			w_g = [w_ks[i]::UInt64 => w_vals[i]::Float64 for i in 1:length(w_ks)]
+
+			grad_l, grad_g = lossGradientNormalized(losstype, ps_local[ii].w, w_g, local_features, read_mb(mb_iter[ii]), params[1])
 			println("$(counter): $(ii): $(norm(grad_l)) $(norm(grad_g))")
 			old_iter = min_num_pass(mb_iter)
-			old_w::Float64 = 0.0
-			new_w::Float64 = 0.0
-			for (idx, grad_val::Float64) in grad_l
-				#update
-				#if (!∈(idx, local_features))
-				#	println("WTF")
-				#end
-				old_w = get(w_local[ii], idx, 0.0)
-				new_w = update_model(penalty_l, old_w, grad_val, eta_l)
-				if (new_w == 0.0)
-					delete!(w_local[ii], idx)
-				else
-					w_local[ii][idx] = new_w
-				end
-			end
-			for (idx, grad_val::Float64) in grad_g
-				#update
-				#if (∈(idx, local_features))
-				#	println("WTF")
-				#end
-				old_w = get(w_global, idx, 0.0)
-				new_w = update_model(penalty_g, old_w, grad_val, eta_g)
-				if (new_w == 0.0)
-					delete!(w_global, idx)
-				else
-					w_global[idx] = new_w
-				end
-			end
+
+			#push				
+			push(ps_local[ii], collect(keys(grad_l)), collect(values(grad_l)), eta_l)
+			push(ps_global, collect(keys(grad_g)), collect(values(grad_g)), eta_g)
+
 			new_iter =  min_num_pass(mb_iter)
 			#println("norm : $(norm(w))")
 			if (new_iter != old_iter)
@@ -88,7 +69,7 @@ function run_sgd(losstype::Int, k::Int, lambda_l1_local::Float64,lambda_l1_globa
 			end	
 		end
 		if (rem(counter, convert(Int, params[10])) == 0)
-			acc = predict(testfile, w_local, w_global)
+			acc = predict(testfile, ps_local, ps_global)
 			println("Iteration $(new_iter): Accuracy $(acc), Sparsity $(length(collect(keys(w_global))))")
 			flush(STDOUT)
 		end	
@@ -98,7 +79,7 @@ function run_sgd(losstype::Int, k::Int, lambda_l1_local::Float64,lambda_l1_globa
       t -= params[8]/2
     end
 	end
-	acc = predict(testfile, w_local, w_global)
+	acc = predict(testfile, ps_local, ps_global)
 	println("Iteration $(new_iter): Accuracy $(acc), Sparsity $(length(collect(keys(w_global))))")
 	flush(STDOUT)
 	return 0
@@ -140,11 +121,11 @@ function predict_one(testfile::AbstractString, w_local::SgdModel, w_global::SgdM
 end
 
 
-function predict(testfile::Vector{AbstractString}, w_local::Vector{SgdModel}, w_global::SgdModel)
+function predict(testfile::Vector{AbstractString}, ps_local::Vector{PS}, ps_global::PS)
 	correct = 0
 	total = 0
 	for i in 1:length(testfile)
-		c1, t1 = predict_one(testfile[i], w_local[i], w_global)
+		c1, t1 = predict_one(testfile[i], ps_local[i].w, ps_global)
 		correct += c1
 		total += t1
 	end
