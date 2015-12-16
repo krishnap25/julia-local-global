@@ -1,4 +1,4 @@
-
+importall ParameterServer
 typealias SgdModel Dict{UInt64, Float64}
 
 function norm(w::SgdModel)
@@ -10,11 +10,11 @@ function norm(w::SgdModel)
 end
 
 function init_sgd(lambda_l1_local::Float64, lambda_l1_global::Float64, lambda_l2::Float64, filename::Vector{AbstractString}, mb_size::Int, k::Int)
-	ps_g = init_PS(lambda_l1, lambda_l2)
+	ps_g = init_PS(lambda_l1_global, lambda_l2)
 	ps_l = Vector{PS}()
 	mb_iter = Vector{minibatch_iter}()
 	for i in 1:k
-		push!(ps_l, init_PS(lambda_l1, lambda_l2))
+		push!(ps_l, init_PS(lambda_l1_local, lambda_l2))
 		push!(mb_iter, minibatch_iter(filename[i], mb_size))
 	end
 	return ps_g, ps_l, mb_iter
@@ -36,7 +36,7 @@ function run_sgd(losstype::Int, k::Int, lambda_l1_local::Float64,lambda_l1_globa
 	beta_l = params[7]; alpha_l = params[5] #defaults
 	beta_g = params[7]; alpha_g = params[6] #defaults
 	eta_l = 0.0; eta_g = 0.0
-	ps_global::PS, ps_local::Vector{PS}, mb_iter::Vector{minibatch_iter}, penalty_l::L1L2Penalty, penalty_g::L1L2Penalty = init_sgd(lambda_l1_local, lambda_l1_global, lambda_l2, trainingfile, mb_size, k)
+	ps_global::PS, ps_local::Vector{PS}, mb_iter::Vector{minibatch_iter} = init_sgd(lambda_l1_local, lambda_l1_global, lambda_l2, trainingfile, mb_size, k)
 	t::Float64 = 1.0
 	new_iter = 0
 	counter = 0
@@ -70,7 +70,7 @@ function run_sgd(losstype::Int, k::Int, lambda_l1_local::Float64,lambda_l1_globa
 		end
 		if (rem(counter, convert(Int, params[10])) == 0)
 			acc = predict(testfile, ps_local, ps_global)
-			println("Iteration $(new_iter): Accuracy $(acc), Sparsity $(length(collect(keys(w_global))))")
+			println("Iteration $(new_iter): Accuracy $(acc), Sparsity $(length(collect(keys(ps_global.w))))")
 			flush(STDOUT)
 		end	
 		t += one(t)
@@ -125,7 +125,7 @@ function predict(testfile::Vector{AbstractString}, ps_local::Vector{PS}, ps_glob
 	correct = 0
 	total = 0
 	for i in 1:length(testfile)
-		c1, t1 = predict_one(testfile[i], ps_local[i].w, ps_global)
+		c1, t1 = predict_one(testfile[i], ps_local[i].w, ps_global.w)
 		correct += c1
 		total += t1
 	end

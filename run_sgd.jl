@@ -78,8 +78,10 @@ function main()
 	temp = readdlm("../../learn/data/$(dataset)/features", UInt64)
   if (num_f == 0)
     features = Set{UInt64}()
+    println("num_f = 0; global")
   elseif (num_f >= size(temp, 1))
     features = Set{UInt64}(0) # singleton  set means all features are local
+    println("num_f = infty ; fully local")
   else
 	  features = Set{UInt64}(temp[1:min(num_f, size(temp, 1)), 1])
   end
